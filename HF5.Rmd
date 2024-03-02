@@ -1,0 +1,248 @@
+<div style="font-size:22px;font-weight:bold">
+
+5.  házi feladat
+
+    ```{r}
+    library(ClusterR) 
+    library(cluster) 
+    library(data.table)
+    library(dplyr)
+    library("ggplot2")
+    library(patchwork)
+    library(fpc)
+    library(tidyr)
+    library(mice)
+    library(caret)
+    ```
+
+    </div>
+
+    <p>Beadási határidő: november 28. (kedd) éjfél</p>
+
+    <p>Beküldés: a Microsoft Teams felületén keresztül</p>
+
+    <p>Adj szöveges választ is, ahol a feladatkitűzés ezt kéri!</p>
+
+    <p><strong>1. feladat (HF5/1)</strong></p>
+
+    <p>Ebben a feladatban egy szupermarket vásárlási adatait fogjuk elemezni nagy valós adathalmaz segítségével. (6 pont)</p>
+
+    <ol style="list-style-type: lower-alpha">
+
+    <li>
+
+    <p>Az adatok forrása a <a href="https://tech.instacart.com/3-million-instacart-orders-open-sourced-d40d29ead6f2">"The Instacart Online Grocery Shopping Dataset 2017"</a>, a linken olvashatsz a projektről részletesebben.Az Adatok (Teams csoport) mappából tudod letölteni a szükséges adatokat, <a href="https://gist.github.com/jeremystan/c3b39d947d9b88b3ccff3147dbcf6c6b">itt pedig az adatok tartalmáról</a> találsz több információt.<br /> Az orders.csv, az order_products_prior.csv és a products.csv adatfájlokat olvasd be R-be. A beolvasáshoz az adatok méretére való tekintettel használd a <em>data.table</em> csomag <em>fread</em> függvényét!<br /> Illeszd össze (<em>merge</em> vagy <em>left_join</em> a <em>dplyr</em> csomagból) a termékazonsítókat és a nevüket, majd ezután szintén vond össze a vásárlások (orders) adatait a termékekkel (order_id alapján)!</p>
+
+    </li>
+
+    <li>
+
+    <p>Célunk a termékek klaszterezése, ehhez a termékekre vonatkozóan különböző attribútumokat kell definiálnunk! Néhány lehetséges attribútum:</p>
+
+    </li>
+
+    </ol>
+
+    <ul>
+
+    <li>hányszor vásárolták az adott terméket</li>
+
+    <li>hány különböző vevő vásárolta</li>
+
+    <li>hány különböző vásárlásban tűnik fel a termék</li>
+
+    <li>a hét melyik napján vásárolták legtöbbet a terméket</li>
+
+    <li>a nap melyik órájában vásárolták legtöbbször a terméket</li>
+
+    <li>átlagosan hány nap telt el az előző vásárláshoz képest</li>
+
+    <li>stb.</li>
+
+    </ul>
+
+    <p>Egy-két attribútumot még találj ki pluszban!</p>
+
+    <p>(Tipp: használd az órán is látott <em>group_by</em> majd <em>summarise</em> függvényket a <em>dplyr</em> csomagból!)</p>
+
+    <ol start="3" style="list-style-type: lower-alpha">
+
+    <li>
+
+    <p>Kezeld a hiányzó adatokat! Ha a product_id hiányzik, akkor azt a terméket töröljük ki! A többi hiányzó adatot pedig próbáljuk a rendelkezésre álló adatok alapján okosan kitalálni (imputation). Ehhez először skálázd az attribútumokat, majd használd a <em>mice</em> nevű csomagból a <em>mice</em> és <em>complete</em> függvényeket! Olvasd el, hogy milyen módszerrel próbálja meg kitalálni a <em>mice</em> a hiányzó adatokat!</p>
+
+    </li>
+
+    <li>
+
+    <p>Határozd meg "könyökmódszerrel" a klaszterek számát, majd ezzel az értékkel futtass K-közép klaszterezést!</p>
+
+    </li>
+
+    <li>
+
+    <p>Valamilyen értelmes dimenziók mentén ábrázold a klaszterezés eredményét! Készíts néhány ábrát és próbáld értelmezni, hogy a kijövő klaszterek milyen terméktípusoknak felelnek meg!</p>
+
+    </li>
+
+    </ol>
+
+```{r}
+#TODO: Solve Problem 1.
+orders <- fread("../Adatok/orders.csv")
+order_products_prior <- fread("../Adatok/order_products__prior.csv")
+products <- fread("../Adatok/products.csv")
+
+#nagytabla <- merge(merge(orders, order_products_prior, by="order_id"), products, by="product_id")
+#df <- nagytabla[1:2500,]
+df <- merge(merge(orders, order_products_prior, by="order_id"), products, by="product_id")
+df <- df[1:10000, 1:10] #az adatok lebutítása, mert nem bírja ezt a nagy adathalmazt a gépem
+
+df <- df %>% drop_na(product_id)
+#head(df)
+
+#Új attribútumok
+df <- df %>% group_by(product_id) %>% summarise(termékeladások_száma=n()) %>% merge(df, by="product_id")
+df <- df %>% group_by(product_id, user_id) %>% group_by(product_id) %>% summarize(vevők_száma=n()) %>% merge(df, by="product_id")
+
+
+
+#Skálázás
+#valami <- preProcess(df, method = "range", range = c(0, 1))
+#valami
+
+df$order_number <- (df$order_number - min(df$order_number, na.rm=TRUE)) / (max(df$order_numbe, na.rm=TRUE) - min(df$order_number, na.rm=TRUE))
+df$order_dow <- (df$order_dow - min(df$order_dow, na.rm=TRUE)) / (max(df$order_dow, na.rm=TRUE) - min(df$order_dow, na.rm=TRUE))
+df$order_hour_of_day <- (df$order_hour_of_day - min(df$order_hour_of_day, na.rm=TRUE)) / (max(df$order_hour_of_day, na.rm=TRUE) - min(df$order_hour_of_day, na.rm=TRUE))
+df$days_since_prior_order <- (df$days_since_prior_order - min(df$days_since_prior_order, na.rm=TRUE)) / (max(df$days_since_prior_order, na.rm=TRUE) - min(df$days_since_prior_order, na.rm=TRUE))
+df$add_to_cart_order <- (df$add_to_cart_order - min(df$add_to_cart_order, na.rm=TRUE)) / (max(df$add_to_cart_order, na.rm=TRUE) - min(df$add_to_cart_order, na.rm=TRUE))
+df$vevők_száma <- (df$vevők_száma - min(df$vevők_száma, na.rm=TRUE)) / (max(df$vevők_száma, na.rm=TRUE) - min(df$vevők_száma, na.rm=TRUE))
+df$termékeladások_száma <- (df$termékeladások_száma - min(df$termékeladások_száma, na.rm=TRUE)) / (max(df$termékeladások_száma, na.rm=TRUE) - min(df$termékeladások_száma, na.rm=TRUE))
+head(df)
+
+#Hiányzó adatok
+complete_df <- complete(mice(df, method="cart"))
+
+head(complete_df)
+
+#Könyök szabály
+elbow_method <- function(data, max_k=15){
+  require(ggplot2)
+  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+  for (i in 1:max_k){
+    wss[i] <- sum(kmeans(complete_df, centers=i)$withinss)
+  }
+  p <- data.frame(number_of_clusters=c(1:max_k), wss=wss) %>%
+    ggplot(aes(x=number_of_clusters, y=wss, group=1)) + geom_point() + 
+    geom_line() + theme_bw() + ylab("Within groups sum of squares")
+  return(print(p))
+}
+
+# apply the function
+#elbow_method(complete_df[,-1], max_k=15) # Innen látszik hogy 3 klaszterrel érdemes dolgozni
+
+#colnames(complete_df)
+
+#clusters <- kmeans(complete_df[,-1], centers = 3, nstart=20)
+#complete_df$cluster <- as.factor(clusters$cluster)
+#head(complete_df)
+
+#library(gridExtra)
+#p1 <- ggplot(complete_df, aes(x=vevők_száma, y=termékeladások_száma, color=cluster)) + geom_point(size=2) + theme_bw()
+#p2 <- ggplot(complete_df, aes(x=vevők_száma, y=order_number, color=cluster)) + geom_point(size=2) + theme_bw()
+#p3 <- ggplot(complete_df, aes(x=order_number, y=termékeladások_száma, color=cluster)) + geom_point(size=2) + theme_bw()
+#grid.arrange(p1,p2,p3, nrow=3)
+```
+
+<p><strong>2. feladat (HF5/2)</strong></p>
+
+<p>Ebben a feladatban egy bútorkereskedés számára kell az ügyféladatokból értelmes és hasznos klasztereket találnod, hogy az egyes klaszterekben lévő ügyfeleknek célzott hirdetésket tudjanak kiküldeni! (4 pont)</p>
+
+<ol style="list-style-type: lower-alpha">
+
+<li>
+
+<p>Töltsd be az Adatok mappában található customer_survey.csv fájlt R-be. Használj két különböző, órán tanult klaszterező algoritmust, hogy megtaláld az értelmes klasztereket! (A klaszterező algoritmusokat nem kell neked megírnod, használd az R beépített függvényeit.) A cél jól használható klasztereket találni!</p>
+
+</li>
+
+<li>
+
+<p>Hasonlítsd össze a két klaszterező által kapott eredményket!</p>
+
+</li>
+
+<li>
+
+<p>Értelmezd az eredményeket! Fogalmazd meg, mik lennének azok a hirdetések, amiket az egyes klasztereknek célzottan kiküldenél?</p>
+
+</li>
+
+</ol>
+
+<p>(Tipp: Érdemes a bináris (factor) attribútumokat numerikussá alakítani, tehát Male - Female helyett 1 -0 stb.)</p>
+
+```{r}
+#TODO: Solve Problem 2.
+customer_survey <- read.csv('../Adatok/customer_survey.csv', sep=' ')
+head(customer_survey)
+
+#Adatok formázása, tisztázása
+customer_survey$income <- log(abs(customer_survey$income))
+customer_survey$gender[customer_survey$gender == "Male"] <- as.integer(0)
+customer_survey$gender[customer_survey$gender == "Female"] <- as.integer(1)
+customer_survey$ownHome[customer_survey$ownHome == "ownNo"] <- as.integer(0)
+customer_survey$ownHome[customer_survey$ownHome == "ownYes"] <- as.integer(1)
+customer_survey$subscribe[customer_survey$subscribe == "subNo"] <- as.integer(0)
+customer_survey$subscribe[customer_survey$subscribe == "subYes"] <- as.integer(1)
+customer_survey <- transform(customer_survey, gender = as.numeric(gender), ownHome = as.numeric(ownHome), subscribe = as.numeric(subscribe))
+#min-max skálázás
+customer_survey$age <- (customer_survey$age - min(customer_survey$age)) / (max(customer_survey$age) - min(customer_survey$age))
+customer_survey$income <- (customer_survey$income - min(customer_survey$income)) / (max(customer_survey$income) - min(customer_survey$income))
+head(customer_survey)
+
+set.seed(100)
+#1. klaszterező algoritmus -- DBSCAN
+dbscan_cl <- dbscan(customer_survey, eps=0.5, MinPts=5)
+dbscan_cl
+
+# Checking cluster 
+#dbscan_cl$cluster
+
+customer_survey_dbscan <- customer_survey
+customer_survey_dbscan$cluster <- dbscan_cl$cluster
+#head(customer_survey_dbscan)
+
+#2. klaszterező algoritmus -- Hierarchikus klaszterezés
+k <- 4
+d_matrix <- dist(customer_survey, method = 'euclidean')
+Hierar_cluster <- hclust(d_matrix, method = "average")
+plot(Hierar_cluster)
+fit <- cutree(Hierar_cluster, k=k)
+#fit
+
+#table(fit)
+rect.hclust(Hierar_cluster, k = k, border = "green")
+customer_survey_hier <- customer_survey
+customer_survey_hier$cluster <- c(fit)
+#head(customer_survey_hier)
+
+
+#Vizualizáció
+d1 <- ggplot(customer_survey_dbscan,   aes(x=factor(ownHome), y=factor(kids))) + geom_point(aes(color=factor(cluster))) + ggtitle('Klaszterezés a DBSCAN algoritmussal subscribe függvényében') + facet_wrap(~ subscribe)
+d2 <- ggplot(customer_survey_dbscan, aes(x=age, y=income)) + geom_point(aes(color=factor(cluster)))
+
+h1 <- ggplot(customer_survey_hier,   aes(x=factor(ownHome), y=factor(kids))) + geom_point(aes(color=factor(cluster))) + ggtitle('Hierarchikus klaszterezés subscribe függvényében') + facet_wrap(~ subscribe)
+h2 <- ggplot(customer_survey_hier, aes(x=age, y=income)) + geom_point(aes(color=factor(cluster)))
+
+d1 / d2
+h1 / h2
+```
+
+Válasz: A DBSCAN algoritmus legjobban a bináris attribútumok szerint vág, akkor marad a legtöbb pont valamilyen magpont. Ilyenkor azonban egy nagy hátránya az algoritmusnak, hogy sok klasztert hoz létre, mindegyikben relatíve egész kevés adatponttal. A Hierarchikus klaszterező algoritmus azonban nagyon jól működik kis klaszterszámra is, viszont ez a módszer is a bináris attribútumok szerint különíti el elsősorban a különböző adatpontokat.
+
+Ilyenkor (ezek szerint) mindenképpen a célpont nemét, gyerekeinek a számát stb
+
+<p><strong>3. feladat (HF5/3)</strong></p>
+
+<p>Ebben a feadatban a Tableau adatviualizációs szoftvert kell használnod, R-rel összekapcsolva. (10 pont)</p>

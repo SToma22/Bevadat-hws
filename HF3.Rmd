@@ -1,0 +1,542 @@
+<h1>
+
+3.  házi feladat (HF3)
+
+    </h1>
+
+    <br>
+
+```{=html}
+    <style>p {font-size:18px;}</style>
+```
+<p>Beadási határidő: 2021.10.25. éjfél <br> Beküldés: Teams assignmenten keresztül az R notebookot HTML formátumban. (Knit to HTML)<br> Adj szöveges választ is, ahol a feladatkitűzés ezt kéri! <br></p>
+
+<hr>
+
+```{r}
+library("class")
+library(rpart)
+library(caret)
+library("rpart.plot")
+library(dplyr)
+library("ggplot2")
+library(patchwork)
+library("maps")
+```
+
+<h1>
+
+1.  feladat (HF3/1) (6 pont)
+
+    </h1>
+
+    <p>
+
+    Ebben a feladatban koronavírus járvánnyal kapcsolatos adatokat fogunk elemezni. Fő adatforrásunk a <strong>European Centre for Disease Prevention and Control</strong> adatbázisa, melyben a COVID-19-el kapcsolatos adatok <a href="https://www.ecdc.europa.eu/en/covid-19/data"> itt </a> érhetőek el. A legtöbb adatbázis országokra lebontva tartalmaz idősoros információt például az új esetek, elhalálozások, illetve beoltottak számáról/arányáról.<br><br> <strong>a)</strong> (2 pont)<br> Az első feladatunk a napi új fertőzöttek és elhunytak számának elemzése. Az ehhez szükséges adatokat a <a href="https://www.ecdc.europa.eu/en/publications-data/data-daily-new-cases-covid-19-eueea-country">daily cases</a> oldalon található adattábla tartalmazza.
+
+    <ul style="font-size:18px;">
+
+    <li>
+
+    Az adatok saját gépre való letöltése nélkül töltsük be egy <i>daily_cases</i> DataFramebe az oldalon található .csv állományt.
+
+```{r}
+daily_cases <- read.csv('https://opendata.ecdc.europa.eu/covid19/nationalcasedeath_eueea_daily_ei/csv/data.csv', sep=",")
+```
+
+<li>
+
+Most csak Magyarországgal, Ausztriával és Svédországgal szeretnénk foglalkozni, ezért szűrjük meg a DataFrameünket úgy, hogy csak ezek az országok maradjanak meg!
+
+```{r}
+daily_cases = filter(daily_cases, countriesAndTerritories == 'Austria' | countriesAndTerritories=='Hungary' | countriesAndTerritories=='Sweden')
+```
+
+<li>
+
+Tartsuk meg csak a dateRep, cases, deaths, countriesAndTerritories, popData2020 oszlopainkat!
+
+```{r}
+daily_cases = daily_cases[c("dateRep", "cases", "deaths", "countriesAndTerritories", "popData2020" )]
+```
+
+<li>
+
+Alakítsuk át date típusúvá a dateRep oszlopot! Szűrjük meg a DataFramet úgy, hogy csak 2021 júliusától vizsgáljuk az adatokat!
+
+```{r}
+daily_cases$dateRep <- as.Date(daily_cases$dateRep, "%d/%m/%Y")
+daily_cases = filter(daily_cases, dateRep >= as.Date("2021-07-01"))
+```
+
+<li>
+
+Ábrázoljuk két külön vonaldiagramon a cases és deaths oszlopokat országonként színezve!
+
+```{r}
+p1 <- ggplot(daily_cases, aes(x=dateRep, y=deaths, color=countriesAndTerritories)) + geom_smooth(se=FALSE) + ggtitle('A halálesetek száma')
+p2 <- ggplot(daily_cases, aes(x=dateRep, y=cases, color=countriesAndTerritories)) + geom_smooth(se=FALSE) + ggtitle('A megfertőződések száma')
+
+p1 / p2
+```
+
+</ul>
+
+<i>Megjegyzés: Ne feledkezzünk meg az ábra tengelyfeliratainak, címének beállításáról sem. Törekedjünk arra is, hogy a szövegek olvashatóak legyenek pl.: megfelelő legyen a betűméret is.</i>
+
+</p>
+
+<br>
+
+<strong>b)</strong> (2 pont)<br> Második feladatunk a fertőzöttek korbeli eloszlásának vizsgálata. Az ehhez szükséges adatokat az <a href="https://www.ecdc.europa.eu/en/publications-data/covid-19-data-14-day-age-notification-rate-new-cases">age-specific notification rate</a> oldalon található adattábla tartalmazza.
+
+<ul style="font-size:18px;">
+
+<li>
+
+Az adatok saját gépre való letöltése nélkül töltsük be egy <i>age_specific</i> DataFramebe az oldalon található .csv állományt.
+
+```{r}
+age_specific <- read.csv('https://opendata.ecdc.europa.eu/covid19/agecasesnational/csv/data.csv', sep=',')
+```
+
+<li>
+
+Most csak Magyarországgal, Ausztriával és Svédországgal szeretnénk foglalkozni, ezért szűrjük meg a DataFrameünket úgy, hogy csak ezek az országok maradjanak meg!
+
+```{r}
+age_specific = filter(age_specific, country == 'Austria' | country=='Hungary' | country=='Sweden')
+#age_specific
+```
+
+<li>
+
+Aggregáljuk az adatokat: Számoljuk ki, hogy mely országban összesen hány fertőzött volt az egyes korosztályokban. (Használjuk a dplyr group_by() függvényét!)
+
+```{r}
+orsz <- age_specific %>% filter(!is.na(country) & !is.na(age_group) & !is.na(new_cases)) %>% group_by(country, age_group) %>% summarize(Esetek_országonként = sum(new_cases))
+
+
+#group_by(age_specific$country, age_specific$age_group)
+```
+
+<li>
+
+Ábrázoljuk egymás mellé helyezett oszlopdiagrammokon a fertőzöttek számának eloszlását különböző korosztályokban. (Az y tengely ne normálalakban, hanem szimplán jelölje a számokat. Pl.: 2e5 helyett 200000)
+
+</ul>
+
+<i>Megjegyzés: Ne feledkezzünk meg az ábra tengelyfeliratainak, címének beállításáról sem. Törekedjünk arra is, hogy a szövegek olvashatóak legyenek pl.: megfelelő legyen a betűméret is.</i>
+
+</p>
+
+```{r}
+
+
+
+
+orsz1 <- orsz[orsz$age_group == '<15yr', ]
+orsz2 <- orsz[orsz$age_group == '15-24yr', ]
+orsz3 <- orsz[orsz$age_group == '25-49yr', ]
+orsz4 <- orsz[orsz$age_group == '50-64yr', ]
+orsz5 <- orsz[orsz$age_group == '65-79yr', ]
+orsz6 <- orsz[orsz$age_group == '80+yr', ]
+
+
+
+#p1 <- ggplot(orsz1, aes(x=country, y=Esetek_országonként)) + geom_histogram()
+#p1 <- ggplot(orsz[orsz$age_group == '<15yr', ], aes(x=country, y=Esetek_országonként)) + geom_histogram()
+#orsz1
+
+#p <- ggplot(orsz, aes(x=country, y=Esetek_országonként)) + geom_histogram() + facet_wrap(~ age_group)
+#p
+
+#age_specific
+```
+
+<p>
+
+<strong>c)</strong> (2 pont)<br> Az utolsó feladatban egy függvényt fogunk írni, melynek egyetlen bemenete egy <i>statistic</i> változó, ami meghatározza, hogy a térkép országait milyen változó szerint színezzük. A lehetséges változók a DataFrameünk oszlopai, ha egy nem létező oszlop nevét adjuk meg, akkor a függvény térjen vissza "Error: Unknown Statistics" szöveggel.
+
+<ul style="font-size:18px;">
+
+<li>
+
+Az adatokat a "<https://math.bme.hu/~pinterj/BevAdat1/Adatok/CovidCasesPJ.csv>" oldalról töltsük le a saját gépünkre az Adatok mappába, majd onnan töltsük be egy covid_cases DataFramebe! (Az adattábla a John Hopkins egyetem által a worldometers oldalon közzétett adatokat tartalmazza.)
+
+<li>
+
+Az országok határaihoz telepítsük a maps packaget és tároljuk el egy world DataFramebe a map_data("world") táblázatot.
+
+<li>
+
+Definiáljuk a függvénykörnyezetet melynek egyetlen változója <i>statistic</i>.
+
+<li>
+
+A függvény ellenőrizze le, hogy létező statisztika-e a bemenet, ha nem, akkor térjen vissza az említett errorral.
+
+<li>
+
+Egyébként pedig illessze össze a covid_cases és world adattáblákat az ország mentén! (Figyeljünk arra, hogy a két táblázatban más az országot tartalmazó oszlop neve, nevesszük át a covid_cases DataFrame 'Country' oszlopát 'region'-re.)
+
+<li>
+
+Az ábrát tároljuk el egy map lokális változóban. Végül a függvény térjen vissza a map ábrával.
+
+</ul>
+
+<br>Az ábra elkészítéséhez segítségünkre áll az alábbi kódvázlat:<br> <code> ggplot(data = world, mapping = aes(x = long, y = lat, group = group)) + <br> coord_fixed(1.3) +<br> geom_polygon(aes(fill = Total.Cases)) +<br> scale_fill_distiller(palette ="Oranges", direction = -1) + \# or direction=1<br> ggtitle("World Covid-19 cases") + theme(<br> axis.text = element_blank(),<br> axis.line = element_blank(),<br> axis.ticks = element_blank(),<br> panel.border = element_blank(),<br> panel.grid = element_blank(),<br> axis.title = element_blank(),<br> panel.background = element_rect(fill = "white"),<br> plot.title = element_text(hjust = 0.5)<br> ) </code><br> Próbáljuk is ki a függvényünket legalább 2-3 statisztikára! Foglaljuk össze pár mondatban a tapasztalatainkat! <br>
+
+```{r}
+covid_cases <- read.csv("../Adatok/CovidCasesPJ.csv")
+world <- map_data("world")
+
+function(statistic){
+  if(!(statistic %in% colnames(covid_cases))){
+    return("Error: Unknown Statistics")
+  }
+  
+}
+
+
+#TODO: Solve 1/c
+
+
+
+
+```
+
+<br>
+
+<h1>
+
+2.  feladat (HF3/2) (9 pont)
+
+    </h1>
+
+    <p>
+
+    Ebben a feladatban oktatási adattudománnyal foglalkozunk! <br>
+
+    <strong>a)</strong> (1 pont)<br> Töltsük le az Adatok mappába a Kaggle adattárházából <a href="https://www.kaggle.com/dipam7/student-grade-prediction">két portugál középiskola diákjainak adatait</a>, majd töltsük be a student-mat.csv fájlt egy school_data DataFramebe. <br>
+
+```{r}
+school_data <- read.csv('../Adatok/student-mat.csv', sep=",")
+head(school_data)
+```
+
+Az adatokon különböző gépitanulási algoritmusokat és módszereket próbálunk ki a következő feladatokban.<br>
+
+<strong>b)</strong> (1 pont)<br> A prediktálandó célváltozónk a G3 oszlop, melyben a hallgatók végső jegyei szerepelnek. Készítsünk bináris osztályozási feladatot: Legyen a célváltozónk 1, ha a G3 oszlopban a hallgató végső jegye 10 fölött (\>=) van.
+
+```{r}
+school_data <- school_data %>% mutate(G3_bin = ifelse(G3 >= 10, 1, 0))
+school_data <- select(school_data, -G3)
+```
+
+<strong>c)</strong> (1 pont)<br> Osszuk fel az adatokat véletlenszerűen 70% tanítóhalmazra és 30% teszthalmazra. Ne feledkezzünk meg random seed beállításáról sem! (Mondjuk set.seed(20).)
+
+```{r}
+set.seed(20)
+test_train <- sample(2, nrow(school_data), replace=TRUE, prob=c(0.7, 0.3))
+train_data <- school_data[test_train==1, 1:33]
+test_data <- school_data[test_train==2, 1:33]
+```
+
+<p>
+
+<strong>d)</strong> (3 pont) <br> Tanítsunk döntési fa modellt az adatokoon és értékeljük is ki a modell teljesítményét a teszthalmazon! <br>
+
+<ul style="font-size:18px;">
+
+<li>
+
+Modell építéséhez használjuk az rpart libraryt!
+
+```{r}
+model <- rpart(G3_bin ~ ., data = train_data, method = "class")
+```
+
+<li>
+
+Rajzoltassuk is ki a döntési fa modelljét! (rpart.plot) Értelmezzük is pár mondatban a döntési fát a rajz alapján! (pl.: Mi mentén vág a fa? Milyen címkét kapnak az egyes levelek? Hány százalékban találja el ott a címkéket?)
+
+```{r}
+rpart.plot(model, yesno = 2, type = 2, extra = 101)
+```
+
+Válasz: Először kétszer a G2, vagyis az "évközi" teljesítménye alapján vág ketté, majd a korosztály szerint. Ez a három vágás elég jó elválasztását adják az adatnak, de a következő kettő már nem annyira, azok után sokkal nagyobb még a rendezetlenség a levelekben
+
+<li>
+
+Készítsünk predikciókat is a modellel, majd írassuk ki a teszthalmaz tévesztési mátrixát! (caret csomag confusionMatrix, factor készítéshez: e1071 csomag as.factor függvénye) Figyelj rá, hogy az 1-es classt tekintse a tévesztési mátrix a pozitív osztálynak! Értelmezd pár mondatban az eredményeket!
+
+```{r}
+predictions <- predict(model, test_data, type = "class")
+
+confusion_matrix <- confusionMatrix(predictions, as.factor(test_data$G3_bin))
+confusion_matrix
+```
+
+<li>
+
+Irassuk a modell szerinti legfontosabb változókat! Ehhez segítségül szolgálnak a lentebb megadott kódok. Mit tapasztalsz? Miért dominál ennyire két változó? <code> library(magrittr)<br> library(dplyr)<br> importances \<- varImp(model)<br> importances %\>% arrange(desc(Overall)) </code>
+
+</ul>
+
+</p>
+
+```{r}
+library(magrittr)
+ library(dplyr)
+ importances <- varImp(model)
+ importances %>% arrange(desc(Overall)) 
+```
+
+Válasz: Látható, hogy az első és a második harmada a tanulmányaiknak (G1 és G2) nagyban befolyásolja a végső eredményüket a diákoknak, ami tulaljdonképpen nem is meglepő, tekintve hogy az első időszakok nagyjából eléggé reprezentatívak
+
+<p>
+
+<strong>e)</strong> (2 pont) <br> Láthattuk a b) feladatrész megoldása közben, hogy van két oszlop, mely nagyon dominálja a modellünket. Ez a két oszlop csak azután áll rendelkezésünkre, miután már a diákok eltöltöttek két időszakot is a középiskolában. Mondhatni nem nagy kunszt a végső átlagot prediktálni úgy, hogy már tanulmányaik 2/3-át befejezték a hallgatók. Ahhoz, hogy gyakorlatban is használható modellt tudjunk felépíteni célszerű eldobni azokat az oszlopokat melyek nem állnak rendelkezésre a felvételi előtti időszakban. Így a hallgatók már kezdetben képet kaphatnak arról, hogy milyen esélyeik vannak a gépi tanulási modell szerint a jó középiskolai szereplésre.<br>
+
+<ul style="font-size:18px;">
+
+<li>
+
+Dobjuk el a G1, G2, failures és absences oszlopokat!
+
+```{r}
+school_data_uj <- select(school_data, c(-G1, -G2, -absences, -failures))
+```
+
+<li>
+
+Hajtsuk végre az b) feladatrész pontjait és értékeljük ki pár mondatban az eredményeket! (Pl.: Most milyen pontos a modellünk? Így mi a legfontosabb változó? stb...)
+
+</ul>
+
+```{r}
+set.seed(20)
+test_train_uj <- sample(2, nrow(school_data_uj), replace=TRUE, prob=c(0.7, 0.3))
+train_data_uj <- school_data_uj[test_train_uj==1, ]
+test_data_uj <- school_data_uj[test_train_uj==2, ]
+
+model_uj <- rpart(G3_bin ~ ., data = train_data_uj, method = "class")
+predictions_uj <- predict(model_uj, test_data_uj, type = "class")
+confusion_matrix_uj <- confusionMatrix(predictions_uj, as.factor(test_data_uj$G3_bin))
+confusion_matrix_uj
+
+```
+
+Válasz: Jelentősen romlott a modell pontossága, ez látszik arról is hogy sokkal kevesebb elem van a TruePozitive és Truenegative cellákban (átóbeli elemek) a táblázatunkban, viszont sokkal több elem a FalsePozitive és FalseNegative cellákban (mellékátlóbeli elemek)
+
+<p>Láthatjuk, hogy jelentősen romlott a modellünk teljesítménye. Próbáljunk meg javítani rajta!</p>
+
+<ul style="font-size:18px;">
+
+<li>
+
+Készítsünk két külön DataFramet, egyet a Gabriel Pereira iskola tanulóinak, egy másikat a Mousinho da Silveira iskola tanulóinak.
+
+```{r}
+dfGP <- filter(school_data_uj, school=='GP')
+dfMS <- filter(school_data_uj, school=='MS')
+```
+
+<li>
+
+Osszuk fel a dataframeket 1-1 tanító- és teszthalmazra.
+
+```{r}
+set.seed(20)
+valtozo <- sample(2, nrow(dfGP), replace=TRUE, prob=c(0.7, 0.3))
+GPtrain <- dfGP[valtozo==1, ]
+GPtest <- dfGP[valtozo==2, ]
+
+set.seed(20)
+valtozo <- sample(2, nrow(dfMS), replace=TRUE, prob=c(0.7, 0.3))
+MStrain <- dfMS[valtozo==1, ]
+MStest <- dfMS[valtozo==2, ]
+```
+
+<li>
+
+Tanítsunk külön modelleket a két iskolában! És készítsünk külön predikciókat!
+
+```{r}
+mGP <- rpart(G3_bin ~ ., data = GPtrain, method = "class")
+mMS <- rpart(G3_bin ~ ., data = MStrain, method = "class")
+
+pGP <- predict(mGP, GPtest, type = "class")
+pMS <- predict(mMS, MStest, type = "class")
+
+```
+
+<li>
+
+Fűzzük össze a két predikciós vektort, és a teszt címkék vektorait. Majd irassunk ki egy tévesztési mátrixot, ami összevontan értékeli ki a két modell teljesítményét! Írd le tapasztalataidat! Sikerült-e javítani a modell teljesítményén?
+
+</p>
+
+</ul>
+
+```{r}
+osszpred1 <- c(pGP, pMS)
+osszpred2 <- c(pGP, pMS)
+
+ossz <- data_frame(osszpred1, osszpred2)
+osszpred1
+osszpred2
+```
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<p><strong>f)</strong> (1 pont) <br> Maradjunk a c) pont utolsó verziójánál! Próbáljuk ki, hogyan teljesít a naív Bayes osztályozó az adatokon! (Használjuk az e1071 csomag naiveBayes függvényét!)</p>
+
+```{r}
+
+
+
+#TODO: Solve 2/f
+
+
+
+
+```
+
+<h1>
+
+3.  feladat (HF3/3) (5 pont)
+
+    </h1>
+
+    <p>
+
+    Az utolsó feladatban különböző cégek részvényeinek árfolyamait fogjuk elemezni. <a href="https://math.bme.hu/~pinterj/BevAdat1/Adatok/Stock/"> Ebben a mappában</a> a Facebook és a Twitter részvényárfolyamának idősora található egészen 2020 áprilisáig.
+
+    <ul style="font-size:18px;">
+
+    <li>
+
+    Töltsük be az adatokat különböző DataFramekbe a saját gépünkre való letöltés nélkül!
+
+```{r}
+facebook <- read.csv('https://math.bme.hu/~pinterj/BevAdat1/Adatok/Stock/Facebook.csv', sep=",")
+head(facebook)
+twitter <- read.csv('https://math.bme.hu/~pinterj/BevAdat1/Adatok/Stock/Twitter.csv', sep=",")
+```
+
+<li>
+
+Szűrjük meg a DataFrameinket, vizsgáljuk az adatainkat 2017 áprilisától.
+
+```{r}
+facebook$Date <- as.Date(facebook$Date, "%Y-%m-%d")
+twitter$Date <- as.Date(twitter$Date, "%Y-%m-%d")
+
+facebook <- filter(facebook, Date >= as.Date("2017-04-01", "%Y-%m-%d"))
+twitter <- filter(twitter, Date >= as.Date("2017-04-01", "%Y-%m-%d"))
+```
+
+<li>
+
+Nézzünk utána és fogalmazzuk meg saját szavainkkal, hogy mit jelentenek az open, close, low, high értékek!
+
+Válasz: Az 'open' és a 'close' értékek a cég kezdő és befelyező részvény árfolyamait mondja meg a adott napra, a 'high' és a 'low' pedig az adott napon a legmagasabb és a legalacsonyabb értékeket mondja meg
+
+<li>
+
+Alakítsuk át a DataFrameinket "Tall" formájúvá. (Ehhez használjuk a reshape2 csomag melt függvényét. Tall DataFramek alatt olyan táblázatokat értünk melynek általában 3 oszlopa van, és mindegyik sor egyetlenegy változó értékét tartalmazza az adott helyen, a plusz oszlop pedig beazonosítja, hogy melyik változóról is van szó.)
+
+```{r}
+library(reshape2)
+
+facebook_data_melted <- melt(facebook, id.vars = c("Date"), measured.vars = c("Open", "Close", "High", "Low", "Adj.Close", "Volume"))
+twitter_data_melted <- melt(twitter, id.vars = ("Date"), measured.vars = c("Open", "Close", "High", "Low", "Adj.Close", "Volume"))
+```
+
+<li>
+
+Mind a két táblázatnál ábrázoljuk a low, high, open és close idősorokat különböző színekkel. (Figyeljünk a tengelyfeliratokra, ábra címére, és az olvasható betűméretekre, ábra méretére stb.)
+
+```{r}
+ggplot(filter(facebook_data_melted, variable=="High" | variable=="Low" | variable=="Open" | variable=="Close"), aes(x=Date, y=value, color=variable)) + geom_smooth(se=FALSE)
+ggplot(filter(twitter_data_melted, variable=="High" | variable=="Low" | variable=="Open" | variable=="Close"), aes(x=Date, y=value, color=variable)) + geom_smooth(se=FALSE)
+```
+
+<li>
+
+Ábrázoljuk közös vonaldiagramon a facebook és twitter 2017-es, 2018-as és 2019-es open részvényárfolyamait. (Ötlet: Készítsünk 3-3 DataFramet az adatokból. Jelöljük egy oszlopban, hogy milyen típusú adatról van szó pl.: Facebook 2018, majd illesszük össze a 6 DataFramet, a dátumból pedig kérjük le dátumként csak a nap és hónap értékeket.)
+
+```{r}
+f17 <- filter(facebook, Date>=as.Date('2017-01-01') & Date < as.Date("2018-01-01"))[, c("Date", "Open")]
+f17$value <- "Facebook 2017"
+f17$Date <- format(f17$Date, "%m-%d")
+
+f18 <- filter(facebook, Date>=as.Date('2018-01-01') & Date < as.Date("2019-01-01"))[, c("Date", "Open")]
+f18$value <- "Facebook 2018"
+f18$Date <- format(f18$Date, "%m-%d")
+
+f19 <- filter(facebook, Date>=as.Date('2019-01-01') & Date < as.Date("2020-01-01"))[, c("Date", "Open")]
+f19$value <- "Facebook 2019"
+f19$Date <- format(f19$Date, "%m-%d")
+
+
+t17 <- filter(twitter, Date>=as.Date('2017-01-01') & Date < as.Date("2018-01-01"))[, c("Date", "Open")]
+t17$value <- "Twitter 2017"
+t17$Date <- format(t17$Date, "%m-%d")
+
+t18 <- filter(twitter, Date>=as.Date('2018-01-01') & Date < as.Date("2019-01-01"))[, c("Date", "Open")]
+t18$value <- "Twitter 2018"
+t18$Date <- format(t18$Date, "%m-%d")
+
+t19 <- filter(twitter, Date>=as.Date('2019-01-01') & Date < as.Date("2020-01-01"))[, c("Date", "Open")]
+t19$value <- "Twitter 2019"
+t19$Date <- format(t19$Date, "%m-%d")
+
+
+ossz <- rbind(f17, f18, f19, t17, t18, t19)
+#ossz
+
+#f17
+ggplot(ossz, aes(x=Date, y=Open, color=value, group=1)) + geom_path()# + geom_line()
+```
+
+<li>
+
+Időbeli változások vizsgálatával szeretnénk foglalkozni, mind a 6 idősort min-max skálázzuk! (Használjuk a scales library rescale függvényét!)
+
+```{r}
+library(scales)
+
+f17$Open <- rescale(f17$Open, to=c(0,1))
+f18$Open <- rescale(f18$Open, to=c(0,1))
+f19$Open <- rescale(f19$Open, to=c(0,1))
+t17$Open <- rescale(t17$Open, to=c(0,1))
+t18$Open <- rescale(t18$Open, to=c(0,1))
+t19$Open <- rescale(t19$Open, to=c(0,1))
+```
+
+<li>
+
+Számoljuk ki és ábrázoljuk egy táblázatban a normalizált idősorok páronkénti DTW távolságát! (Használjuk a dtw csomag dtw függvényét! Készítsünk DataFramet, a sorok és oszlopok nevei is legyenek a megfelelő idősorok nevei, a cellákban pedig a DTW távolságuk szerepeljen. Használj for ciklust! Tárold el a DataFrameket egy listában.)
+
+<li>
+
+Mit tapasztalsz? Hasonlítanak-e a különböző években a cégek idősorai? Foglald össze tapasztalataidat 1-2 mondatban.
+
+</ul>
+
+</p>
+
+```{r}
+
+
+
+#TODO: Solve 3
+
+
+
+
+```
