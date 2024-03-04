@@ -1,2 +1,2 @@
 # Bevadat-homeworks
-I programmed these homework files for a course on BME with the name Bevezetés az Adattudományba 1.
+I did the folowing programme files as homework for a course at BME with the name Bevezetés az Adattudományba 1.
